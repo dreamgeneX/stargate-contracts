@@ -19,6 +19,16 @@ cargo clippy -- -D warnings
 cargo test
 ```
 
+## Coverage
+
+Generate coverage reports for contract tests:
+
+```sh
+scripts/coverage.sh
+```
+
+This produces an HTML report in `coverage/index.html` and an LCOV file for CI integration.
+
 ## Deployment
 
 ```sh
