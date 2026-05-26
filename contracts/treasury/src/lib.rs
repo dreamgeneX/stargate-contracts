@@ -16,7 +16,9 @@ impl TreasuryContract {
     pub fn initialize(env: Env, admin: Address, threshold: u32) {
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::Threshold, &threshold);
+        env.storage()
+            .instance()
+            .set(&DataKey::Threshold, &threshold);
         env.storage()
             .instance()
             .set(&DataKey::SettlementCount, &0u64);
@@ -68,9 +70,7 @@ impl TreasuryContract {
         env.storage()
             .persistent()
             .set(&DataKey::Settlement(id), &settlement);
-        env.storage()
-            .instance()
-            .set(&DataKey::SettlementCount, &id);
+        env.storage().instance().set(&DataKey::SettlementCount, &id);
         env.events()
             .publish((Symbol::new(&env, "settlement_proposed"), id), settlement);
         id
@@ -186,7 +186,9 @@ impl TreasuryContract {
             amount,
             status: DisputeStatus::Raised,
         };
-        env.storage().persistent().set(&DataKey::Dispute(id), &dispute);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Dispute(id), &dispute);
         env.storage().instance().set(&DataKey::DisputeCount, &id);
         env.events()
             .publish((Symbol::new(&env, "dispute_raised"), id), dispute);
@@ -212,10 +214,59 @@ impl TreasuryContract {
         env.storage()
             .persistent()
             .set(&DataKey::Dispute(dispute_id), &dispute);
-        env.events().publish(
-            (Symbol::new(&env, "dispute_resolved"), dispute_id),
-            dispute,
-        );
+        env.events()
+            .publish((Symbol::new(&env, "dispute_resolved"), dispute_id), dispute);
+    }
+
+    pub fn deposit(env: Env, from: Address, token_contract: Address, amount: i128) {
+        Self::require_not_paused(&env);
+        from.require_auth();
+        if amount <= 0 {
+            panic!("InvalidAmount");
+        }
+
+        let treasury = env.current_contract_address();
+        let token_client = token::Client::new(&env, &token_contract);
+        token_client.transfer(&from, &treasury, &amount);
+
+        let mut balance: i128 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Balance(from.clone()))
+            .unwrap_or(0);
+        balance += amount;
+        env.storage()
+            .persistent()
+            .set(&DataKey::Balance(from.clone()), &balance);
+        env.events()
+            .publish((Symbol::new(&env, "deposit"), from), amount);
+    }
+
+    pub fn withdraw(env: Env, to: Address, token_contract: Address, amount: i128) {
+        Self::require_not_paused(&env);
+        to.require_auth();
+        if amount <= 0 {
+            panic!("InvalidAmount");
+        }
+
+        let mut balance: i128 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Balance(to.clone()))
+            .unwrap_or(0);
+        if balance < amount {
+            panic!("InsufficientBalance");
+        }
+        balance -= amount;
+        env.storage()
+            .persistent()
+            .set(&DataKey::Balance(to.clone()), &balance);
+
+        let treasury = env.current_contract_address();
+        let token_client = token::Client::new(&env, &token_contract);
+        token_client.transfer(&treasury, &to, &amount);
+        env.events()
+            .publish((Symbol::new(&env, "withdraw"), to), amount);
     }
 
     fn require_admin(env: &Env, admin: &Address) {
@@ -227,7 +278,11 @@ impl TreasuryContract {
     }
 
     fn require_not_paused(env: &Env) {
-        let paused: bool = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false);
         if paused {
             panic!("ContractPaused");
         }

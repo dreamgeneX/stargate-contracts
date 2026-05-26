@@ -47,4 +47,5 @@ pub enum DataKey {
     Paused,
     DisputeCount,
     Dispute(u64),
+    Balance(Address),
 }
