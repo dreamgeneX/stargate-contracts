@@ -17,7 +17,27 @@ This repository owns invoice escrow state, payment validation, multi-sig treasur
 cargo fmt --all
 cargo clippy -- -D warnings
 cargo test
+make check-abi-snapshots
 ```
+
+## ABI snapshots
+
+Committed ABI metadata in `abis/` is generated from contract sources. Before opening a PR that changes contract behavior, refresh snapshots:
+
+```sh
+make update-abi-snapshots
+```
+
+Confirm the tree is clean:
+
+```sh
+make check-abi-snapshots
+git diff --exit-code abis/
+```
+
+The generator sets `LC_ALL=C` and `LANG=C` so output is identical across machines.
+
+See `CONTRIBUTING.md` for local pre-commit hooks.
 
 ## Deployment
 

@@ -20,3 +20,12 @@ Run all hooks manually:
 ```sh
 pre-commit run --all-files
 ```
+
+## ABI snapshots
+
+After changing contract interfaces, regenerate and verify ABI metadata:
+
+```sh
+make update-abi-snapshots
+make check-abi-snapshots
+```
