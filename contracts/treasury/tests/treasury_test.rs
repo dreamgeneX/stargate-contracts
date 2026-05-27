@@ -123,3 +123,24 @@ fn execute_settlement_requires_authorized_signer() {
         .try_execute_settlement(&rogue, &settlement_id, &token)
         .is_err());
 }
+
+#[test]
+fn test_initialize_rejects_zero_threshold() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let admin = Address::generate(&env);
+    let id = env.register_contract(None, TreasuryContract);
+    let client = TreasuryContractClient::new(&env, &id);
+    assert!(client.try_initialize(&admin, &0).is_err());
+}
+
+#[test]
+fn test_initialize_rejects_reinit() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let admin = Address::generate(&env);
+    let id = env.register_contract(None, TreasuryContract);
+    let client = TreasuryContractClient::new(&env, &id);
+    client.initialize(&admin, &1);
+    assert!(client.try_initialize(&admin, &2).is_err());
+}

@@ -3,7 +3,7 @@
 mod multisig;
 mod settlement;
 
-pub use multisig::{DataKey, Settlement, SettlementStatus};
+pub use multisig::{DataKey, Settlement, SettlementStatus, TreasuryError};
 
 use settlement::{require_authorized_signer, signer_weight};
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, Symbol, Vec};
@@ -44,7 +44,13 @@ pub struct TreasuryContract;
 
 #[contractimpl]
 impl TreasuryContract {
-    pub fn initialize(env: Env, admin: Address, threshold: u32) {
+    pub fn initialize(env: Env, admin: Address, threshold: u32) -> Result<(), TreasuryError> {
+        if env.storage().instance().has(&DataKey::Admin) {
+            return Err(TreasuryError::AlreadyInitialized);
+        }
+        if threshold == 0 {
+            return Err(TreasuryError::ZeroThreshold);
+        }
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage()
@@ -59,6 +65,7 @@ impl TreasuryContract {
             .set(&DataKey::Signer(admin.clone()), &1u32);
         env.events()
             .publish((Symbol::new(&env, "treasury_initialized"),), admin);
+        Ok(())
     }
 
     pub fn set_signer(env: Env, admin: Address, signer: Address, weight: u32) {
