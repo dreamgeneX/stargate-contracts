@@ -25,8 +25,18 @@ impl ComplianceContract {
         let allowed: bool = env
             .storage()
             .persistent()
-            .get(&DataKey::Allowed(address))
+            .get(&DataKey::Allowed(address.clone()))
             .unwrap_or(false);
+        if blocked || allowed {
+            env.storage().persistent().extend_ttl(
+                &DataKey::Blocked(address.clone()),
+                6_000_000,
+                6_000_000,
+            );
+            env.storage()
+                .persistent()
+                .extend_ttl(&DataKey::Allowed(address), 6_000_000, 6_000_000);
+        }
         allowed && !blocked
     }
 
@@ -36,6 +46,11 @@ impl ComplianceContract {
         env.storage()
             .persistent()
             .set(&DataKey::Allowed(address.clone()), &true);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Allowed(address.clone()),
+            6_000_000,
+            6_000_000,
+        );
         env.events()
             .publish((Symbol::new(&env, "address_allowed"),), address);
     }
@@ -47,18 +62,46 @@ impl ComplianceContract {
         env.storage()
             .persistent()
             .set(&DataKey::Blocked(address.clone()), &true);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Blocked(address.clone()),
+            6_000_000,
+            6_000_000,
+        );
         env.events()
             .publish((Symbol::new(&env, "address_blocked"),), address);
     }
 
     pub fn clear_address(env: Env, admin: Address, address: Address) {
         Self::require_admin(&env, &admin);
+        let was_allowed: bool = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Allowed(address.clone()))
+            .unwrap_or(false);
+        let was_blocked: bool = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Blocked(address.clone()))
+            .unwrap_or(false);
+        if !was_allowed && !was_blocked {
+            panic!("AddressNotRegistered");
+        }
         env.storage()
             .persistent()
             .set(&DataKey::Blocked(address.clone()), &false);
         env.storage()
             .persistent()
             .set(&DataKey::Allowed(address.clone()), &true);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Blocked(address.clone()),
+            6_000_000,
+            6_000_000,
+        );
+        env.storage().persistent().extend_ttl(
+            &DataKey::Allowed(address.clone()),
+            6_000_000,
+            6_000_000,
+        );
         env.events()
             .publish((Symbol::new(&env, "address_cleared"),), address);
     }

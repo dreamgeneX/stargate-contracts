@@ -216,3 +216,8 @@ fn emits_address_cleared_event() {
     // Events are captured by the snapshot test harness; no additional assertions needed here.
     let _ = env;
 }
+
+// Note: clear_address behavior for unknown addresses
+// clear_address panics with "AddressNotRegistered" if the address was never allowed or blocked.
+// This ensures callers cannot accidentally clear an address that hasn't been registered,
+// preventing silent no-ops that could mask deployment errors.

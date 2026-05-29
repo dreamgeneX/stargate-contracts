@@ -1,4 +1,4 @@
-use invoice::{InvoiceContract, InvoiceContractClient, InvoiceError, InvoiceStatus};
+use invoice::{InvoiceContract, InvoiceContractClient, InvoiceError, InvoiceStatus, MaybePayer};
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
     Address, Env,
@@ -19,13 +19,13 @@ fn test_create_invoice_succeeds() {
     let (env, _admin, client) = setup();
     let merchant = Address::generate(&env);
     let id = client.create_invoice(&merchant, &10_000_000, &10_250_000, &3600);
-    let invoice = client.get_invoice(&id).unwrap();
+    let invoice = client.get_invoice(&id);
     assert_eq!(invoice.id, 1);
     assert_eq!(invoice.status, InvoiceStatus::Pending);
     assert_eq!(invoice.amount_usdc, 10_000_000);
     assert_eq!(invoice.gross_usdc, 10_250_000);
     // Issue #6: payer is None before payment
-    assert!(invoice.payer.is_none());
+    assert!(matches!(invoice.payer, MaybePayer::None));
 }
 
 #[test]
@@ -91,7 +91,10 @@ fn test_get_invoice_unknown_id_returns_not_found() {
 fn test_mark_paid_unknown_id_returns_not_found() {
     let (env, admin, client) = setup();
     let payer = Address::generate(&env);
-    let err = client.try_mark_paid(&admin, &999, &payer).unwrap_err().unwrap();
+    let err = client
+        .try_mark_paid(&admin, &999, &payer)
+        .unwrap_err()
+        .unwrap();
     assert_eq!(err, InvoiceError::NotFound);
 }
 
@@ -103,8 +106,8 @@ fn test_payer_set_after_payment() {
     let payer = Address::generate(&env);
     let id = client.create_invoice(&merchant, &10_000_000, &10_250_000, &3600);
     client.mark_paid(&admin, &id, &payer);
-    let invoice = client.get_invoice(&id).unwrap();
-    assert_eq!(invoice.payer, Some(payer));
+    let invoice = client.get_invoice(&id);
+    assert_eq!(invoice.payer, MaybePayer::Some(payer));
 }
 
 // Issue #7: expired event emitted when mark_paid finds stale invoice
@@ -117,7 +120,7 @@ fn test_expired_event_emitted_on_stale_mark_paid() {
     env.ledger().with_mut(|ledger| ledger.timestamp += 2);
     let _ = client.try_mark_paid(&admin, &id, &payer);
     // Invoice should now be Expired in storage
-    let invoice = client.get_invoice(&id).unwrap();
+    let invoice = client.get_invoice(&id);
     assert_eq!(invoice.status, InvoiceStatus::Expired);
 }
 
@@ -130,7 +133,10 @@ fn test_payment_at_exact_expiry_is_rejected() {
     // expires_in_seconds=10, ledger starts at 0, so expires_at=10
     let id = client.create_invoice(&merchant, &10_000_000, &10_250_000, &10);
     env.ledger().with_mut(|ledger| ledger.timestamp = 10);
-    let err = client.try_mark_paid(&admin, &id, &payer).unwrap_err().unwrap();
+    let err = client
+        .try_mark_paid(&admin, &id, &payer)
+        .unwrap_err()
+        .unwrap();
     assert_eq!(err, InvoiceError::Expired);
 }
 
@@ -143,7 +149,7 @@ fn test_payment_before_expiry_succeeds() {
     let id = client.create_invoice(&merchant, &10_000_000, &10_250_000, &10);
     env.ledger().with_mut(|ledger| ledger.timestamp = 9);
     client.mark_paid(&admin, &id, &payer);
-    let invoice = client.get_invoice(&id).unwrap();
+    let invoice = client.get_invoice(&id);
     assert_eq!(invoice.status, InvoiceStatus::Paid);
 }
 
@@ -217,13 +223,13 @@ fn test_event_stream_redis_webhook_compatibility() {
     assert_eq!(invoice.amount_usdc, 10_000_000);
     assert_eq!(invoice.gross_usdc, 10_250_000);
     assert_eq!(invoice.status, InvoiceStatus::Pending);
-    assert_eq!(invoice.payer, merchant); // Payer defaults to merchant on creation
+    assert!(matches!(invoice.payer, MaybePayer::None));
 
     // Verify payment event data
     client.mark_paid(&admin, &invoice_id, &payer);
     let paid_invoice = client.get_invoice(&invoice_id);
     assert_eq!(paid_invoice.status, InvoiceStatus::Paid);
-    assert_eq!(paid_invoice.payer, payer);
+    assert_eq!(paid_invoice.payer, MaybePayer::Some(payer));
     assert!(paid_invoice.paid_at.is_some());
 
     // Verify pause/unpause events with Address data
