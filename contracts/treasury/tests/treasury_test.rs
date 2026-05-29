@@ -25,6 +25,18 @@ fn approvals_accumulate_until_threshold() {
     let backup = Address::generate(&env);
     let merchant = Address::generate(&env);
     client.set_signer(&admin, &backup, &1);
+fn setup_multisig() -> (Env, Address, Address, TreasuryContractClient<'static>) {
+    let env = Env::default();
+    let (client, admin, _) = setup(&env, 2);
+    let backup = Address::generate(&env);
+    client.set_signer(&admin, &backup, &1);
+    (env, admin, backup, client)
+}
+
+#[test]
+fn approvals_accumulate_until_threshold() {
+    let (env, admin, backup, client) = setup_multisig();
+    let merchant = Address::generate(&env);
     let settlement_id = client.propose_settlement(&admin, &merchant, &10_000_000);
     let settlement = client.approve_settlement(&backup, &settlement_id);
     assert_eq!(settlement.status, SettlementStatus::Pending);
@@ -48,9 +60,10 @@ fn approve_missing_settlement_returns_typed_error() {
 #[should_panic(expected = "SettlementNotFound")]
 fn execute_missing_settlement_returns_typed_error() {
     let env = Env::default();
-    let (client, _, _) = setup(&env, 2);
+    let (client, admin, _) = setup(&env, 2);
     let token = Address::generate(&env);
     client.execute_settlement(&Address::generate(&env), &999, &token);
+    client.execute_settlement(&admin, &999, &token);
 }
 
 // Fix #15: weight snapshotted at approval time — changing weight after approval
@@ -92,6 +105,7 @@ fn execute_rejects_self_as_token_contract() {
     let merchant = Address::generate(&env);
     let sid = client.propose_settlement(&admin, &merchant, &10_000_000);
     client.execute_settlement(&admin, &sid, &contract_id);
+    client.execute_settlement(&admin, &sid, &token);
 }
 
 #[test]
@@ -202,6 +216,16 @@ fn dispute_resolved_in_favor_of_counterparty() {
 }
 
 #[test]
+#[should_panic(expected = "InvalidTokenContract")]
+fn execute_rejects_self_as_token_contract() {
+    let env = Env::default();
+    let (client, admin, contract_id) = setup(&env, 1);
+    let merchant = Address::generate(&env);
+    let sid = client.propose_settlement(&admin, &merchant, &10_000_000);
+    client.execute_settlement(&admin, &sid, &contract_id);
+}
+
+#[test]
 fn pause_and_unpause_emit_events() {
     let env = Env::default();
     env.mock_all_auths();
@@ -222,6 +246,7 @@ fn execute_settlement_requires_authorized_signer() {
     let env = Env::default();
     let (client, admin, _) = setup(&env, 2);
     let backup = Address::generate(&env);
+    let (env, admin, backup, client) = setup_multisig();
     let merchant = Address::generate(&env);
     let rogue = Address::generate(&env);
     client.set_signer(&admin, &backup, &1);
