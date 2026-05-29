@@ -24,6 +24,14 @@ pub enum InvoiceStatus {
     Cancelled,
 }
 
+/// `Option<Address>` is not supported by `#[contracttype]`; use this enum instead.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum OptionalAddress {
+    None,
+    Some(Address),
+}
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Invoice {
@@ -34,7 +42,7 @@ pub struct Invoice {
     pub status: InvoiceStatus,
     pub expires_at: u64,
     pub paid_at: Option<u64>,
-    pub payer: Option<Address>,
+    pub payer: OptionalAddress,
 }
 
 #[contracttype]
