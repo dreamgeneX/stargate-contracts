@@ -7,25 +7,6 @@ pub use multisig::{DataKey, Dispute, DisputeStatus, Settlement, SettlementStatus
 
 use settlement::{require_authorized_signer, signer_weight};
 use soroban_sdk::{contract, contractimpl, token, Address, Env, Symbol, Vec};
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, Symbol, Vec};
-
-impl TreasuryError {
-    fn panic(&self) -> ! {
-        match self {
-            TreasuryError::AlreadyInitialized => panic!("AlreadyInitialized"),
-            TreasuryError::ZeroThreshold => panic!("ZeroThreshold"),
-            TreasuryError::SettlementNotFound => panic!("SettlementNotFound"),
-            TreasuryError::AlreadyExecuted => panic!("AlreadyExecuted"),
-            TreasuryError::ThresholdNotMet => panic!("ThresholdNotMet"),
-            TreasuryError::ThresholdNotConfigured => panic!("ThresholdNotConfigured"),
-            TreasuryError::InvalidAmount => panic!("InvalidAmount"),
-            TreasuryError::ContractPaused => panic!("ContractPaused"),
-            TreasuryError::Unauthorized => panic!("Unauthorized"),
-            TreasuryError::UnauthorizedSigner => panic!("UnauthorizedSigner"),
-            TreasuryError::InvalidTokenContract => panic!("InvalidTokenContract"),
-        }
-    }
-}
 
 #[contract]
 pub struct TreasuryContract;
@@ -132,7 +113,12 @@ impl TreasuryContract {
         settlement
     }
 
-    pub fn execute_settlement(env: Env, signer: Address, settlement_id: u64, token_contract: Address) {
+    pub fn execute_settlement(
+        env: Env,
+        signer: Address,
+        settlement_id: u64,
+        token_contract: Address,
+    ) {
         Self::require_not_paused(&env);
         // Fix #13: return typed error instead of unwrap panic
         require_authorized_signer(&env, &signer);
