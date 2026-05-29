@@ -53,6 +53,19 @@ impl ComplianceContract {
 
     pub fn clear_address(env: Env, admin: Address, address: Address) {
         Self::require_admin(&env, &admin);
+        let was_allowed: bool = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Allowed(address.clone()))
+            .unwrap_or(false);
+        let was_blocked: bool = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Blocked(address.clone()))
+            .unwrap_or(false);
+        if !was_allowed && !was_blocked {
+            panic!("AddressNotRegistered");
+        }
         env.storage()
             .persistent()
             .set(&DataKey::Blocked(address.clone()), &false);
