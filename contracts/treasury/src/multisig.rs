@@ -22,6 +22,9 @@ pub enum TreasuryError {
 pub enum SettlementStatus {
     Pending,
     Executed,
+    PartiallyExecuted,
+    OnHold,
+    Cancelled,
 }
 
 #[contracttype]
@@ -52,6 +55,9 @@ pub struct Dispute {
     pub counterparty: Address,
     pub amount: i128,
     pub status: DisputeStatus,
+    pub resolution_approvals: Vec<Address>,
+    pub resolution_weight: u32,
+    pub resolution_for_claimant: bool,
 }
 
 #[contracttype]
