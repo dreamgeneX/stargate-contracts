@@ -15,6 +15,9 @@ pub enum TreasuryError {
     Unauthorized = 9,
     UnauthorizedSigner = 10,
     InvalidTokenContract = 11,
+    TokenNotAllowed = 12,
+    RotationNotFound = 13,
+    RotationAlreadyExecuted = 14,
 }
 
 #[contracttype]
@@ -55,6 +58,24 @@ pub struct Dispute {
 }
 
 #[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RotationStatus {
+    Pending,
+    Executed,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SignerRotationProposal {
+    pub id: u64,
+    pub old_signer: Address,
+    pub new_signer: Address,
+    pub approvals: Vec<Address>,
+    pub approval_weight: u32,
+    pub status: RotationStatus,
+}
+
+#[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
     Admin,
@@ -66,4 +87,7 @@ pub enum DataKey {
     DisputeCount,
     Dispute(u64),
     Balance(Address),
+    TokenAllowlist,
+    RotationCount,
+    SignerRotation(u64),
 }
